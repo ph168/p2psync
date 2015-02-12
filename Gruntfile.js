@@ -77,22 +77,12 @@ module.exports = function (grunt) {
       }
     },
 
-    requirejs: {
-      compile: {
-        options: {
-          baseUrl: '<%= app.src %>',
-          mainConfigFile: '<%= app.src %>/index.js',
-          out: '<%= app.dist %>/bundled.js'
-        }
-      }
-    },
-
     concat: {
       options: {
         separator: ';',
       },
       dist: {
-        src: ['<%= app.dist %>/bundled.js', '<%= app.lib %>/require.js'],
+        src: ['<%= app.src %>/*.js'],
         dest: '<%= app.dist %>/dist.js',
       },
     },

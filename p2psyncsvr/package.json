@@ -10,6 +10,8 @@
   "author": "Peter Hoffmann <peter@p-h.im>",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.11.2"
+    "express": "^4.11.2",
+    "peerjs": "",
+    "peer": ""
   }
 }

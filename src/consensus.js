@@ -2,18 +2,24 @@
 
 window.p2psync = {
 
+  peer: null,
   peers: [],
 
   start: function(params) {
-    var peer = new Peer({host: params.host || 'localhost', port: params.port || 9000});
+    p2psync.peer = new Peer({host: params.host || 'localhost', port: params.port || 9000});
     var done = null;
-    peer.on('open', function() {
-      console.log('open');
+    p2psync.peer.on('open', function() {
       superagent.get(params.peerUrl || 'http://localhost:3000/peers').end(function(res) {
         p2psync.peers = Object.keys(res.body);
         if (done != null) {
           done(p2psync);
         }
+      });
+    });
+    p2psync.peer.on('connection', function(conn) {
+      console.log('connection from peer opened');
+      conn.on('data', function(data) {
+        console.log('Received ' + data);
       });
     });
     return {
@@ -25,7 +31,11 @@ window.p2psync = {
 
   sync: function(config) {
     p2psync.peers.forEach(function(peer) {
-      console.log('syncing with ' + peer);
+      var conn = p2psync.peer.connect(peer);
+      conn.on('open', function() {
+        console.log('sending data to peer ' + peer);
+        conn.send(config.data);
+      });
     });
     // ?
     return {

@@ -1,0 +1,39 @@
+<html>
+<head>
+    <title>p2psync example</title>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0/handlebars.min.js" type="text/javascript"></script>
+  <script src="//cdn.peerjs.com/0.3/peer.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/superagent/0.15.7/superagent.min.js"></script>
+  <script src="src/consensus.js"></script>
+</head>
+<body>
+
+<h1>p2psync.js example page</h1>
+
+<p>My first paragraph.</p>
+
+<input type=text />
+
+<script type="text/javascript">
+    /* p2psync now starts to find peers */
+    p2psync.start({
+        /* options with defaults */
+        // timeout option
+        timeout: 10
+    }).done(function(instance) {
+      instance.sync({ data: 'datastr' })
+          .done(function(rtcRequest) {
+              /* the lib looked for and found at least 1 peer */
+              console.log('RTC request data: ' + rtcRequest);
+          })
+          .fail(function(err) {
+              /* error could occur because of: */
+              // timeout before finding peers
+              // 
+              console.log('Error message: ' + err);
+          });
+    });
+</script>
+
+</body>
+</html>

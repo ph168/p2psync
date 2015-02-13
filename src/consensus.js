@@ -12,7 +12,15 @@ window.p2psync = {
       superagent.get(params.peerUrl || 'http://localhost:3000/peers').end(function(res) {
         p2psync.peers = Object.keys(res.body);
         if (done != null) {
-          done(p2psync);
+          var keyStore = new window.KeyStore();
+          var openP = keyStore.open().
+            catch(function(err) {
+                alert('Could not open key store: ' + err.message);
+            });
+          p2psync.keyStore = keyStore;
+          openP.then(function() {
+            done(p2psync);
+          });
         }
       });
     });

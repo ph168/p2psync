@@ -1,18 +1,21 @@
 <html>
 <head>
-    <title>p2psync example</title>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0/handlebars.min.js" type="text/javascript"></script>
+  <title>p2psync example</title>
   <script src="//cdn.peerjs.com/0.3/peer.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/superagent/0.15.7/superagent.min.js"></script>
   <script src="src/consensus.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/knockout/3.2.0/knockout-min.js" type="text/javascript"></script>
+    <script src="src/keystore.js" type="text/javascript"></script>
+    <script src="src/crypto.js" type="text/javascript"></script>
 </head>
 <body>
 
 <h1>p2psync.js example page</h1>
 
-<p>My first paragraph.</p>
+<a download="p2psync.key" data-bind="attr: { href: encryptionKey }, text: encryptionKey" alt="Your encryption key">Download your key</a>
 
-<input type=text />
+<input type="text" placeholder="sync this text" />
+<button>sync</button>
 
 <script type="text/javascript">
     /* p2psync now starts to find peers */
@@ -21,6 +24,19 @@
         // timeout option
         timeout: 10
     }).done(function(instance) {
+
+        var vm = new function() {
+            var self = this;
+            this.encryptionKey = ko.observable();
+
+            p2psync.getKeyRaw()
+                .then(function(raw) {
+                    var arr = new Uint8Array(raw);
+                    self.encryptionKey(createDataUrlFromByteArray(arr));
+                });
+        };
+        ko.applyBindings(vm, document.querySelectorAll("a")[0]);
+
       instance.sync({ data: 'datastr' })
           .done(function(rtcRequest) {
               /* the lib looked for and found at least 1 peer */
@@ -33,6 +49,15 @@
               console.log('Error message: ' + err);
           });
     });
+
+    function createDataUrlFromByteArray(byteArray) {
+        var binaryString = '';
+        for (var i=0; i<byteArray.byteLength; i++) {
+            binaryString += String.fromCharCode(byteArray[i]);
+        }
+        return 'data:application/octet-stream;base64,' + btoa(binaryString);
+    }
+
 </script>
 
 </body>

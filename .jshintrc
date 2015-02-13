@@ -25,5 +25,8 @@
     "trailing": true,
     "smarttabs": true,
     "globals": {
+        "alert": false,
+        "p2psync": false,
+        "indexedDB": false
     }
 }

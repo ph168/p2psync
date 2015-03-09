@@ -25,3 +25,5 @@ app.use(function(req, res, next) {
 app.get('/peers', function(req, res) {
   return res.json(peers);
 });
+
+console.log('Initialized');

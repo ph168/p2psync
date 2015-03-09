@@ -12,7 +12,7 @@
 
 <h1>p2psync.js example page</h1>
 
-<a download="p2psync.key" data-bind="attr: { href: encryptionKey }, text: encryptionKey" alt="Your encryption key">Download your key</a>
+<a download="p2psync.key" data-bind="attr: { href: encryptionKey }, text: encryptionKeyText" alt="Your encryption key">Download your key</a>
 
 <input type="text" placeholder="sync this text" />
 <button>sync</button>
@@ -28,11 +28,13 @@
         var vm = new function() {
             var self = this;
             this.encryptionKey = ko.observable();
+            this.encryptionKeyText = ko.observable();
 
-            p2psync.getKeyRaw()
+            instance.__crypto.getKeyRaw()
                 .then(function(raw) {
                     var arr = new Uint8Array(raw);
                     self.encryptionKey(createDataUrlFromByteArray(arr));
+                    self.encryptionKeyText(arrayBufferToString(arr));
                 });
         };
         ko.applyBindings(vm, document.querySelectorAll("a")[0]);
@@ -48,14 +50,37 @@
               // 
               console.log('Error message: ' + err);
           });
+
+          instance.__crypto.encrypt('Hello World').then(encryptSuccess);
+
+          function encryptSuccess(encrypted) {
+            console.log('Encrypting data: <Hello World> ', arrayBufferToString(encrypted));
+            instance.__crypto.decrypt(encrypted).then(decryptSuccess);
+          }
+          function decryptSuccess(decrypted) {
+            console.log('Decrypting data again: ', decrypted);
+          }
     });
 
-    function createDataUrlFromByteArray(byteArray) {
+    function arrayBufferToString(bytes) {
+        var str = '';
+        var byteArr =  new Uint8Array(bytes);
+        for (var i=0; i < byteArr.length; i++) {
+            str += String.fromCharCode(byteArr[i]);
+        }
+        return str;
+    }
+
+    function toString(byteArray) {
         var binaryString = '';
         for (var i=0; i<byteArray.byteLength; i++) {
             binaryString += String.fromCharCode(byteArray[i]);
         }
-        return 'data:application/octet-stream;base64,' + btoa(binaryString);
+        return binaryString;
+    }
+
+    function createDataUrlFromByteArray(byteArray) {
+        return 'data:application/octet-stream;base64,' + btoa(toString(byteArray));
     }
 
 </script>

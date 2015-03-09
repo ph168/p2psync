@@ -3,20 +3,18 @@
 (function(p2psync) {
 
     var crypto = window.crypto || window.msCrypto;
-    // database key for the keys
+    var subtle = crypto.subtle;
+
+    // indexedDB store name for known keys in this domain
     var keyName = 'p2psyncKey';
-    // encryption key to use for all operations
-    var aesKey;
 
-    var keyStore;
-
-    function generateNewKey() {
-        return crypto.subtle.generateKey(
+    function generateNewKey(keyStore) {
+        return subtle.generateKey(
             {
                 name: 'AES-CBC',
                 length: 128
             },
-            true,
+            true, // keep extractable for later reuse and transfer to other clients
             ['encrypt', 'decrypt']
         ).
         then(function(key) {
@@ -27,22 +25,13 @@
         });
     }
 
-    var keyPromise = crypto.subtle.generateKey(
-        {name: 'AES-CBC', length: 128}, // Algorithm the key will be used with
-        true,                           // Can extract key value to binary string
-        ['encrypt', 'decrypt']          // Use for these operations
-    );
-
-    keyPromise.then(function(key) {aesKey = key;});
-    keyPromise.catch(function(err) {console.error('Key generation failed: ' + err.message);});
-
-    function getExistingKey() {
+    function getExistingKey(keyStore) {
         return keyStore.getKey('name', keyName)
             .then(function(storedKey) {
                 if (!storedKey) {
                     return null;
                 }
-                return algorithm.importKey(
+                return subtle.importKey(
                     'raw',
                     storedKey.raw,                
                     {name: 'AES-CBC', length: 128}, 
@@ -50,16 +39,49 @@
                     ['encrypt', 'decrypt'] // Use for these operations
                 ).
                 then(function(key) { return key;}).
-                catch(function(err) {console.error('Something went wrong: ' + err.message);});    
+                catch(function(err) {console.error('Could not import key: ' + err.message);});    
             }).
-            catch(function(err) {console.error('Something went wrong: ' + err.message);});
+            catch(function(err) {console.error('Could not access key store: ' + err.message);});
     }
 
-    var iv = crypto.getRandomValues(new Uint8Array(16));
-    var param = {name: 'AES-CBC', iv: iv};
+    function ensureKey(keyStore) {
+        return getExistingKey(keyStore).then(function(key) {
+            if (!key) {
+                return generateNewKey(keyStore).then(function(newKey) {
+                    return newKey;
+                });
+            }
+            return key;
+        })
+        .catch(function(err) {
+            console.error('Error while looking for existing key: ' + err);
+        });
+    }
 
-    var algorithm = crypto.subtle;
-    function getBytes(str) {
+    /**
+    * Instantiates a new crypto service with a given key
+    */
+    p2psync.createCryptoService = function() {
+
+        var keyStore = new p2psync.KeyStore();
+
+        function createService(keyStore) {
+            return ensureKey(keyStore)
+                .then(function(key) {
+                    return new CryptoService(key);
+                });
+        }
+        return keyStore
+            .open()
+            .then(createService);
+    };
+
+    function CryptoService(key) {
+        this.key = key;
+        this.params = newParams();
+    }
+
+    function toArrayBuffer(str) {
         var bytes = new Uint8Array(str.length);
         for (var i=0; i<str.length; i++) {
             bytes[i] = str.charCodeAt(i);
@@ -67,7 +89,7 @@
         return bytes;
     }
 
-    function getString(bytes) {
+    function arrayBufferToString(bytes) {
         var str = '';
         var byteArr =  new Uint8Array(bytes);
         for (var i=0; i < byteArr.length; i++) {
@@ -76,50 +98,34 @@
         return str;
     }
 
-    p2psync.getKey = function() {
-        keyStore = p2psync.keyStore;
-        return getExistingKey()
-            .then(function(key) {
-                if (!key) {
-                    return generateNewKey().then(function(newKey) {
-                        return newKey;
-                    });
-                }
-                return key;
-            })
-            .catch(function(err) {
-                console.error('Error while looking for existing key: ' + err);
-            });
+    function newParams() {
+        var iv = crypto.getRandomValues(new Uint8Array(16));
+        return {name: 'AES-CBC', iv: iv};
+    }
+
+    CryptoService.prototype.getKeyRaw = function() {
+        return subtle.exportKey('raw', this.key);
     };
 
-    p2psync.getKeyRaw = function() {
-        return p2psync.getKey().then(function(key) {
-            return algorithm.exportKey('raw', key).
-                then(function(raw) {
-                    return raw;
-                });
-        });
-    };
-
-    p2psync.encrypt = function(data) {
-
-        return algorithm.encrypt(
-            param,
-            aesKey,
-            getBytes(JSON.stringify(data))
+    CryptoService.prototype.encrypt = function(data) {
+        return subtle.encrypt(
+            this.params,
+            this.key,
+            toArrayBuffer(JSON.stringify(data))
         );
     };
 
-    p2psync.decrypt = function(data) {
+    CryptoService.prototype.decrypt = function(data) {
+        var self = this;
         return new Promise(function(resolve, reject) {
             var arr = new Uint8Array(data);
-            algorithm.decrypt(
-                param,
-                aesKey,
+            subtle.decrypt(
+                self.params,
+                self.key,
                 arr.buffer
             )
             .then(function(decrypted) {
-                resolve(getString(decrypted));
+                resolve(arrayBufferToString(decrypted));
             })
             .catch(function(err) {
                 reject(err);

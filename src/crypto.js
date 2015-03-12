@@ -9,6 +9,7 @@
     var keyName = 'p2psyncKey';
 
     function generateNewKey(keyStore) {
+        console.log('Generating new key');
         return subtle.generateKey(
             {
                 name: 'AES-CBC',
@@ -31,6 +32,7 @@
                 if (!storedKey) {
                     return null;
                 }
+                console.log('Found existing key');
                 return subtle.importKey(
                     'raw',
                     storedKey.raw,                
@@ -78,7 +80,7 @@
 
     function CryptoService(key) {
         this.key = key;
-        this.params = newParams();
+        this.params = ensureParams();
     }
 
     function toArrayBuffer(str) {
@@ -96,6 +98,23 @@
             str += String.fromCharCode(byteArr[i]);
         }
         return str;
+    }
+
+    function ensureParams() {
+        var lsKey = 'ivParameter';
+        if (localStorage[lsKey]) {
+            var stored = JSON.parse(localStorage[lsKey]);
+            // reconstruct iv array
+            var iv = new Uint8Array(16);
+            for (var key in stored.iv) {
+                iv[parseInt(key)] = stored.iv[key];
+            }
+            stored.iv = iv;
+            return stored;
+        }
+        var params = newParams();
+        localStorage[lsKey] = JSON.stringify(params);
+        return params;
     }
 
     function newParams() {
